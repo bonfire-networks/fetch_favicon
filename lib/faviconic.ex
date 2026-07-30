@@ -231,6 +231,9 @@ defmodule Faviconic do
     end
   end
 
+  # with no base url to resolve against, the icon path is all we have (`URI.parse/1` raises a FunctionClauseError on a non-binary, and callers do pass nil — eg. Unfurl for a hostless url)
+  defp get_absolute_image_path(url, icon_path) when not is_binary(url), do: icon_path
+
   defp get_absolute_image_path(url, icon_path) do
     case URI.parse(url) do
       %{scheme: nil} ->
