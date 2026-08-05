@@ -3,6 +3,30 @@ defmodule FaviconicTest do
 
   import Mock
 
+  test "accepts an HTML favicon that rejects HEAD but allows GET" do
+    test_pid = self()
+    favicon_url = "https://example.com/signed-icon.svg"
+    html = "<html><head><link rel=\"icon\" href=\"#{favicon_url}\"></head></html>"
+    {:ok, document} = Floki.parse_document(html)
+
+    with_mock Req,
+      head: fn ^favicon_url, _opts ->
+        send(test_pid, :head_requested)
+        {:ok, %{status: 403, headers: []}}
+      end,
+      get: fn ^favicon_url, opts ->
+        send(test_pid, {:get_requested, opts})
+        {:ok, %{status: 200, headers: [{"content-type", "image/svg+xml"}], body: ""}}
+      end do
+      result = Faviconic.parse("https://example.com", document)
+
+      assert_received :head_requested
+      assert_received {:get_requested, opts}
+      assert is_function(opts[:into], 2)
+      assert {:ok, ^favicon_url} = result
+    end
+  end
+
   test "invalid html returned" do
     with_mock Req, get: fn url, _ -> {:ok, ""} end do
       assert {:error, _} = Faviconic.fetch("reddit.com")

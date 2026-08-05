@@ -155,28 +155,22 @@ defmodule Faviconic do
   end
 
   defp get_valid_image_url(url) do
-    case get_headers(url) do
-      {:ok, %{headers: headers_list}} ->
-        # IO.inspect(headers_list)
-        case Enum.into(headers_list, %{}) do
-          %{"content-type" => ["image" <> _]} ->
-            {:ok, url}
-
-          %{"content-type" => "image" <> _} ->
-            {:ok, url}
-
-          _ ->
-            debug(headers_list, "did not find expected header (content-type: image)")
-            nil
-        end
-
-      # |> IO.inspect(label: "get_valid_image_url")
-
-      other ->
-        debug(other, url)
-        nil
+    if image_response?(get_headers(url)) or image_response?(get_headers_with_get(url)) do
+      {:ok, url}
+    else
+      nil
     end
   end
+
+  defp image_response?({:ok, %{headers: headers_list}}) do
+    case Enum.into(headers_list, %{}) do
+      %{"content-type" => ["image" <> _]} -> true
+      %{"content-type" => "image" <> _} -> true
+      _ -> false
+    end
+  end
+
+  defp image_response?(_), do: false
 
   defp get_html_from_url(url) do
     case fetch_url(url) do
@@ -229,6 +223,35 @@ defmodule Faviconic do
         _ -> nil
       end
     end
+  end
+
+  defp get_headers_with_get(url) do
+    if full_uri?(url) do
+      case Req.get(
+             url,
+             user_agent: @user_agent,
+             receive_timeout: @timeout_ms,
+             max_redirects: 3,
+             retry: false,
+             raw: true,
+             # Some signed asset URLs reject HEAD. Stop after the first GET body chunk because only the response headers are needed.
+             into: fn {:data, _data}, {request, response} ->
+               {:halt, {request, response}}
+             end,
+             adapter: ProcessTree.get(:req_adapter) || (&Req.Steps.run_finch/1)
+           ) do
+        {:ok, %{status: status_code} = response} when status_code in 200..299 ->
+          {:ok, response}
+
+        other ->
+          debug(other, url)
+          nil
+      end
+    end
+  rescue
+    e in RuntimeError ->
+      error(e)
+      nil
   end
 
   # with no base url to resolve against, the icon path is all we have (`URI.parse/1` raises a FunctionClauseError on a non-binary, and callers do pass nil — eg. Unfurl for a hostless url)
