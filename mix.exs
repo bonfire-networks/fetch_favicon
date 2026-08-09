@@ -23,7 +23,7 @@ defmodule Faviconic.MixProject do
   defp deps do
     [
       # HTTP Client
-      {:req, "~> 0.3"},
+      {:req, "~> 0.7"},
       # HTML Parser
       {:floki, "~> 0.32"},
       # error handling

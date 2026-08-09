@@ -195,7 +195,7 @@ defmodule Faviconic do
                max_redirects: 3,
                retry: false,
                # for mocks during testing
-               adapter: ProcessTree.get(:req_adapter) || (&Req.Steps.run_finch/1)
+               adapter: ProcessTree.get(:req_adapter) || Req.Finch
              ) do
         {:ok, %{status: 200}} -> {:ok, response}
         other -> 
@@ -238,7 +238,7 @@ defmodule Faviconic do
              into: fn {:data, _data}, {request, response} ->
                {:halt, {request, response}}
              end,
-             adapter: ProcessTree.get(:req_adapter) || (&Req.Steps.run_finch/1)
+             adapter: ProcessTree.get(:req_adapter) || Req.Finch
            ) do
         {:ok, %{status: status_code} = response} when status_code in 200..299 ->
           {:ok, response}
